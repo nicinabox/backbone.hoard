@@ -2,10 +2,11 @@
 
 var gulp = require('gulp');
 var karma = require('karma').server;
+var argv = require('yargs').argv;
 
-gulp.task('test:integration', ['test:unit', 'test:integration:bundle'], function (done) {
+gulp.task('test:integration', ['test:integration:bundle'], function (done) {
   karma.start({
     configFile: process.env.PWD + '/karma.conf.js',
-    singleRun: +process.env.KARMA_DEBUG === 1 ? false : true
+    singleRun: !argv.karmaDebug
   }, done);
 });

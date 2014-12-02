@@ -4,6 +4,7 @@ var _ = require('underscore');
 var Hoard = require('./backbone.hoard');
 var MetaStore = require('./meta-store');
 var StoreHelpers = require('./store-helpers');
+var Lock = require('./lock');
 
 var mergeOptions = ['backend', 'metaStoreClass'];
 
@@ -22,14 +23,32 @@ var Store = function (options) {
 _.extend(Store.prototype, Hoard.Events, {
   initialize: function () {},
 
-  // Store an item and its metadata, handling errors with `onSetError`
+  // Store an item and its metadata
+  // If the store fails to set an item, invalidate the key
+  // and return an error message
   set: function (key, item, meta, options) {
-    var storedItem = JSON.stringify(item);
-    var metaWithSize = _.extend({ size: storedItem.length }, meta);
-    var itemPromise = this._setItem(key, storedItem);
-    var metaPromise = this.metaStore.set(key, metaWithSize, options);
-    var setPromise = Hoard.Promise.all([itemPromise, metaPromise]);
-    return setPromise.then(undefined, _.bind(this.onSetError, this, key, options));
+    item = item || '';
+    meta = meta || '';
+    return Lock.withAccess('store-write', _.bind(function () {
+      var itemPromise = this._setItem(key, item);
+      var metaPromise = this.metaStore.set(key, meta, options);
+      return Hoard.Promise.all([itemPromise, metaPromise]);
+    }, this)).then(
+      _.identity,
+      _.bind(function (error) {
+        var errorHandler = function () {
+          return Hoard.Promise.reject({
+            key: key,
+            value: item,
+            meta: meta,
+            error: error,
+            options: options
+          });
+        };
+        return this.invalidate(key, options)
+          .then(errorHandler, errorHandler);
+      }, this)
+    );
   },
 
   // Retrieve an item from the cache
@@ -45,14 +64,12 @@ _.extend(Store.prototype, Hoard.Events, {
 
   // Remove all items listed by store metadata then remove all metadata.
   invalidateAll: function () {
-    var dataPromise = this.getAllMetadata().then(function (metadata) {
+    var dataPromise = this.getAllMetadata().then(_.bind(function (metadata) {
       _.each(_.keys(metadata), function (key) {
         this.backend.removeItem(key);
       }, this);
-    }.bind(this));
-
+    }, this));
     var metaPromise = this.metaStore.invalidateAll();
-
     return Hoard.Promise.all([dataPromise, metaPromise]);
   },
 
@@ -64,15 +81,6 @@ _.extend(Store.prototype, Hoard.Events, {
   // Get all the metadata
   getAllMetadata: function (options) {
     return this.metaStore.getAll(options);
-  },
-
-  // SUBJECT TO CHANGE
-  // Invalidate the entire cache
-  // In the future, the Policy will decide how to respond to a Store set error
-  onSetError: function (key, options) {
-    return this.invalidateAll().then(function () {
-      return Hoard.Promise.reject();
-    });
   },
 
   _setItem: StoreHelpers.proxySetItem
