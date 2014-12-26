@@ -10,3 +10,7 @@ gulp.task('test:integration:bundle', ['link'], function () {
     .pipe(rename('spec.bundle.js'))
     .pipe(gulp.dest('./spec/integration'));
 });
+
+gulp.task('test:integration:bundle:watch', ['test:integration:bundle'], function () {
+  gulp.watch(['src/**.js', 'spec/integration/**.int-spec.js'], ['test:integration:bundle']);
+});
