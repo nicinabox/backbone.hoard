@@ -29,6 +29,11 @@ _.extend(Policy.prototype, Hoard.Events, {
     return _.result(model, 'url');
   },
 
+  // Get the data from the given model
+  getData: function (model, options) {
+    return model.toJSON();
+  },
+
   // Generate metadata
   getMetadata: function (key, response, options) {
     var meta = {};

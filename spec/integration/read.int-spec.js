@@ -4,7 +4,7 @@ var _ = require('underscore');
 var Backbone = require('backbone');
 var Hoard = require('src/backbone.hoard');
 
-describe("Fetching", function () {
+describe("Reading", function () {
   beforeEach(function () {
     this.control = new Hoard.Control();
     this.Model = Backbone.Model.extend({

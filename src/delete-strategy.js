@@ -11,7 +11,7 @@ var Delete = Strategy.extend({
     var invalidatePromise = this.store.invalidate(key, options);
     var syncPromise = Hoard.sync('delete', model, options);
     var returnSync = function () { return syncPromise; };
-    return invalidatePromise.then(returnSync, returnSync);
+    return invalidatePromise.then(returnSync);
   }
 });
 

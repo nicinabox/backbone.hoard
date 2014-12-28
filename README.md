@@ -118,6 +118,10 @@ Defaults to the result of `model.url`.
 Returns an identifier for the given `model` and `method` to reference in the cache.
 Defaults to Policy#getUrl.
 
+###Policy#getData(model, options)
+
+Return the database representation of the model. Defaults to `model.toJSON()`.
+
 ###Policy#shouldEvictItem(metadata)
 
 Returns `true` if the item represented by `metadata` is stale, false otherwise.

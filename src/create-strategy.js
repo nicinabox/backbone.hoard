@@ -7,7 +7,7 @@ module.exports = PositiveWriteStrategy.extend({
 
   // In standard REST APIs, the id is not available until the response returns.
   // Therefore, use the response when determining how to cache.
-  cacheOptions: {
-    generateKeyFromResponse: true
+  cacheOptions: function (model, options) {
+    return { generateKeyFromResponse: true };
   }
 });
