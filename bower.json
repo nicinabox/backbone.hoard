@@ -1,6 +1,6 @@
 {
   "name": "backbone.hoard",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Local caching for Backbone",
   "main": "dist/backbone.hoard.js",
   "keywords": ["backbone", "cache", "localstorage", "sync"],

@@ -113,6 +113,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	      deferred.reject = reject;
 	    });
 	    return deferred;
+	  },
+
+	  // A utility method to execute a callback
+	  // And pass through the failure
+	  rejectCallback: function (callback) {
+	    return function (failure) {
+	      var value = callback(failure);
+	      return Hoard.Promise.reject(value);
+	    }
 	  }
 	};
 
@@ -127,6 +136,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var Hoard = __webpack_require__(2);
 	var MetaStore = __webpack_require__(8);
 	var StoreHelpers = __webpack_require__(9);
+	var Lock = __webpack_require__(10);
 
 	var mergeOptions = ['backend', 'metaStoreClass'];
 
@@ -145,14 +155,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	_.extend(Store.prototype, Hoard.Events, {
 	  initialize: function () {},
 
-	  // Store an item and its metadata, handling errors with `onSetError`
+	  // Store an item and its metadata
+	  // If the store fails to set an item, invalidate the key
+	  // and return an error message
 	  set: function (key, item, meta, options) {
-	    var storedItem = JSON.stringify(item);
-	    var metaWithSize = _.extend({ size: storedItem.length }, meta);
-	    var itemPromise = this._setItem(key, storedItem);
-	    var metaPromise = this.metaStore.set(key, metaWithSize, options);
-	    var setPromise = Hoard.Promise.all([itemPromise, metaPromise]);
-	    return setPromise.then(undefined, _.bind(this.onSetError, this, key, options));
+	    item = item || '';
+	    meta = meta || '';
+	    return Lock.withAccess('store-write', _.bind(function () {
+	      var itemPromise = this._setItem(key, item);
+	      var metaPromise = this.metaStore.set(key, meta, options);
+	      return Hoard.Promise.all([itemPromise, metaPromise]);
+	    }, this)).then(
+	      _.identity,
+	      _.bind(function (error) {
+	        var errorHandler = function () {
+	          return Hoard.Promise.reject({
+	            key: key,
+	            value: item,
+	            meta: meta,
+	            error: error,
+	            options: options
+	          });
+	        };
+	        return this.invalidate(key, options)
+	          .then(errorHandler, errorHandler);
+	      }, this)
+	    );
 	  },
 
 	  // Retrieve an item from the cache
@@ -168,14 +196,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  // Remove all items listed by store metadata then remove all metadata.
 	  invalidateAll: function () {
-	    var dataPromise = this.getAllMetadata().then(function (metadata) {
+	    var dataPromise = this.getAllMetadata().then(_.bind(function (metadata) {
 	      _.each(_.keys(metadata), function (key) {
 	        this.backend.removeItem(key);
 	      }, this);
-	    }.bind(this));
-
+	    }, this));
 	    var metaPromise = this.metaStore.invalidateAll();
-
 	    return Hoard.Promise.all([dataPromise, metaPromise]);
 	  },
 
@@ -187,15 +213,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // Get all the metadata
 	  getAllMetadata: function (options) {
 	    return this.metaStore.getAll(options);
-	  },
-
-	  // SUBJECT TO CHANGE
-	  // Invalidate the entire cache
-	  // In the future, the Policy will decide how to respond to a Store set error
-	  onSetError: function (key, options) {
-	    return this.invalidateAll().then(function () {
-	      return Hoard.Promise.reject();
-	    });
 	  },
 
 	  _setItem: StoreHelpers.proxySetItem
@@ -232,8 +249,18 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  // Generate a key for the given model
 	  // The key will be used to determine uniqueness in the store
-	  getKey: function (model, method) {
+	  getKey: function (model, method, options) {
+	    return this.getUrl(model, method, options);
+	  },
+
+	  // Get the url for the given model
+	  getUrl: function (model, method, options) {
 	    return _.result(model, 'url');
+	  },
+
+	  // Get the data from the given model
+	  getData: function (model, options) {
+	    return model.toJSON();
 	  },
 
 	  // Generate metadata
@@ -253,6 +280,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // Return false otherwise.
 	  shouldEvictItem: function (meta) {
 	    return meta.expires != null && meta.expires < Date.now();
+	  },
+
+	  // Return an array of keys to evict
+	  // By default, clear the world
+	  getKeysToEvict: function (metadata, key, value, error) {
+	    return _.keys(metadata);
 	  }
 	});
 
@@ -272,11 +305,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	var Hoard = __webpack_require__(2);
 	var Store = __webpack_require__(3);
 	var Policy = __webpack_require__(4);
-	var CreateStrategyClass = __webpack_require__(10);
-	var ReadStrategyClass = __webpack_require__(11);
-	var UpdateStrategyClass = __webpack_require__(12);
-	var PatchStrategyClass = __webpack_require__(13);
-	var DeleteStrategyClass = __webpack_require__(14);
+	var CreateStrategyClass = __webpack_require__(11);
+	var ReadStrategyClass = __webpack_require__(12);
+	var UpdateStrategyClass = __webpack_require__(13);
+	var PatchStrategyClass = __webpack_require__(14);
+	var DeleteStrategyClass = __webpack_require__(15);
 
 	// Configuration information to ease the creation of Strategy classes
 	var strategies = {
@@ -377,6 +410,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _ = __webpack_require__(7);
 	var Hoard = __webpack_require__(2);
+	var Lock = __webpack_require__(10);
 
 	var mergeOptions = ['store', 'policy'];
 
@@ -394,6 +428,90 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  execute: function (model, options) {
 	    throw new Error("Strategy#execute must be implemented");
+	  },
+
+	  //When the cache is full, evict items from the cache
+	  //and try to store the item again
+	  //or just return the value if storage fails
+	  onCacheFull: function (cacheFull) {
+	    var key = cacheFull.key;
+	    var value = cacheFull.value;
+	    var meta = cacheFull.meta;
+	    var error = cacheFull.error;
+	    var options = cacheFull.options;
+
+	    // lock access to keep knowledge of cache consistent
+	    return Lock.withLock('store-write', _.bind(function () {
+	      return this.store.getAllMetadata().then(_.bind(function (metadata) {
+	        var keysToEvict = this.policy.getKeysToEvict(metadata, key, value, error);
+	        if (!_.isEmpty(keysToEvict)) {
+	          var evictions = _.map(keysToEvict, function (key) {
+	            return this.store.invalidate(key, options);
+	          }, this);
+	          return Hoard.Promise.all(evictions);
+	        } else {
+	          return Hoard.Promise.reject();
+	        }
+	      }, this));
+	    }, this)).then(
+	      _.bind(this.store.set, this.store, key, value, meta, options),
+	      function () { return Hoard.Promise.reject(value); }
+	    );
+	  },
+
+	  // Cache the response when the success callback is called
+	  _wrapSuccessWithCache: function (method, model, options) {
+	    return this._wrapMethod(method, model, _.extend({
+	      targetMethod: 'success',
+	      responseHandler: _.bind(this._storeResponse, this)
+	    }, options));
+	  },
+
+	  // invalidate the key when the success callback is called
+	  _wrapErrorWithInvalidate: function (method, model, options) {
+	    return this._wrapMethod(method, model, _.extend({
+	      targetMethod: 'error',
+	      responseHandler: _.bind(this._invalidateResponse, this)
+	    }, options));
+	  },
+
+	  _wrapMethod: function (method, model, options) {
+	    var key = this.policy.getKey(model, method, options);
+	    return _.wrap(options[options.targetMethod], _.bind(function (targetMethod, response) {
+	      if (targetMethod) {
+	        targetMethod(response);
+	      }
+	      if (options.generateKeyFromResponse) {
+	        key = this.policy.getKey(model, method, options);
+	      }
+	      if (options.responseHandler) {
+	        options.responseHandler(key, response, options);
+	      }
+	    }, this));
+	  },
+
+	  _invalidateResponse: function (key, response, options) {
+	    this.store.invalidate(key).then(
+	      this._storeAction('onStoreSuccess', options, response),
+	      this._storeAction('onStoreError', options, response)
+	    );
+	  },
+
+	  _storeResponse: function (key, response, options) {
+	    var meta = this.policy.getMetadata(key, response, options);
+	    var finalResponse = _.extend({}, options.original, response);
+	    this.store.set(key, finalResponse, meta).then(
+	      _.identity,
+	      _.bind(this.onCacheFull, this)
+	    ).then(
+	      this._storeAction('onStoreSuccess', options, response),
+	      this._storeAction('onStoreError', options, response)
+	    );
+	  },
+
+	  _storeAction: function (method, options, response) {
+	    var callback = options[method] || function () { return response };
+	    return function () { return callback(response); }
 	  }
 	});
 
@@ -468,7 +586,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 
 	  _set: function (key, meta) {
-	    return this._setItem(key, JSON.stringify(meta));
+	    return this._setItem(key, meta);
 	  },
 
 	  _setItem: StoreHelpers.proxySetItem
@@ -490,8 +608,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = {
 	  proxySetItem: function (key, value) {
 	    try {
-	      this.backend.setItem(key, value);
-	      return Hoard.Promise.resolve();
+	      this.backend.setItem(key, JSON.stringify(value));
+	      return Hoard.Promise.resolve(value);
 	    } catch (e) {
 	      return Hoard.Promise.reject(e);
 	    }
@@ -514,18 +632,108 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
-	var PositiveWriteStrategy = __webpack_require__(15);
+	var _ = __webpack_require__(7);
+	var Hoard = __webpack_require__(2);
 
-	module.exports = PositiveWriteStrategy.extend({
-	  _method: 'create',
+	// Internal store to keep track of state of locks
+	// Keyed by lock name
+	// Stores promises indicating lock access and acquisition
+	var locks = {};
 
-	  // In standard REST APIs, the id is not available until the response returns.
-	  // Therefore, use the response when determining how to cache.
-	  cacheOptions: {
-	    generateKeyFromResponse: true
+	// Get lock with name lockName if it exists
+	// Create it and return it if it doesn't exist
+	var getLock = function (lockName) {
+	  var lock = locks[lockName];
+	  if (!lock) {
+	    lock = {
+	      accesses: {}
+	    };
+	    locks[lockName] = lock;
 	  }
-	});
+	  return lock;
+	};
 
+	// Return a promise that resolves when all provided promises have either passed or succeeded
+	// This differs from Promise.all in that it will not fail if any of the given promises fail
+	var allPromisesComplete = function (promises) {
+	  var allPromise = _.reduce(promises, function (memo, promise) {
+	    var nextPromise = function () {
+	      return promise;
+	    };
+	    return memo.then(nextPromise);
+	  }, Hoard.Promise.resolve());
+	  return allPromise;
+	};
+
+	// A helper function to wrap a callback with the context of lock access
+	// Lock access context is maintained to allow access nested within a lock call
+	var callWithLockContext = function (lock, isInsideLock, callback) {
+	  return function () {
+	    lock.isInsideLock = isInsideLock;
+	    var value = callback();
+	    delete lock.isInsideLock;
+	    return value;
+	  };
+	};
+
+	// A set of methods to
+	// (1) provide exclusive access to a resource
+	// (2) provide unbounded access to a resource in the absence of any exclusive access
+	// This allows normal method behavior, until mutex behavior is needed
+	// Resources are identified by the lockName
+	var Lock = {
+	  // Acquires lock with name lockName if lock is not already acquired or being accessed
+	  // Otherwise, waits until lock is available
+	  withLock: function (lockName, callback) {
+	    var lock = getLock(lockName);
+	    var lockLater = _.bind(this.withLock, this, lockName, callback);
+
+	    if (lock.locked) {
+	      return lock.locked.then(lockLater, Hoard.rejectCallback(lockLater));
+	    } else if (!_.isEmpty(lock.accesses)) {
+	      return allPromisesComplete(lock.accesses).then(lockLater, Hoard.rejectCallback(lockLater));
+	    } else {
+	      var cleanLock = function (value) {
+	        delete lock.locked;
+	        return value;
+	      };
+	      var acquiredLock = Hoard.Promise.resolve()
+	        .then(callWithLockContext(lock, true, callback))
+	        .then(cleanLock, Hoard.rejectCallback(cleanLock));
+	      lock.locked = acquiredLock;
+	      return acquiredLock;
+	    }
+	  },
+
+	  // Accesses lock with name lockName if lock is not already acquired
+	  // Otherwise, waits until lock is available
+	  withAccess: function (lockName, callback) {
+	    var lock = getLock(lockName);
+	    if (lock.locked && !lock.isInsideLock) {
+	      var accessLater = _.bind(this.withAccess, this, lockName, callback);
+	      return lock.locked.then(accessLater, Hoard.rejectCallback(accessLater));
+	    } else {
+	      var accessId = _.uniqueId('backbone.hoard.lock.access_');
+	      var cleanLock = function (value) {
+	        delete lock.accesses[accessId];
+	        return value;
+	      };
+	      var access = Hoard.Promise.resolve()
+	        .then(callWithLockContext(lock, lock.isInsideLock, callback))
+	        .then(cleanLock, Hoard.rejectCallback(cleanLock));
+	      lock.accesses[accessId] = access;
+	      return access;
+	    }
+	  },
+
+	  // Remove a lock
+	  // Only to be used for testing
+	  __resetLock: function (lockName) {
+	    delete locks[lockName];
+	  }
+	};
+
+	module.exports = Lock;
 
 /***/ },
 /* 11 */
@@ -533,10 +741,28 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
+	var PositiveWriteStrategy = __webpack_require__(16);
+
+	module.exports = PositiveWriteStrategy.extend({
+	  _method: 'create',
+
+	  // In standard REST APIs, the id is not available until the response returns.
+	  // Therefore, use the response when determining how to cache.
+	  cacheOptions: function (model, options) {
+	    return { generateKeyFromResponse: true };
+	  }
+	});
+
+
+/***/ },
+/* 12 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
 	var _ = __webpack_require__(7);
 	var Hoard = __webpack_require__(2);
 	var Strategy = __webpack_require__(6);
-	var StrategyHelpers = __webpack_require__(16);
 
 	// The `Read` Strategy keeps a hash, `this.placeholders` of cache keys for which it is currently retrieving data.
 	// Only one request, the 'live' request, for a given key will actually go through to retrieve the data from its source,
@@ -548,7 +774,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 
 	  execute: function (model, options) {
-	    var key = this.policy.getKey(model, 'read');
+	    var key = this.policy.getKey(model, 'read', options);
+	    options.url = this.policy.getUrl(model, 'read', options);
 
 	    // If a placeholder is hit, then a request has already been made for this key
 	    // Resolve when that request has returned
@@ -556,7 +783,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return this._onPlaceholderHit(key, options);
 	    } else {
 	      // If a placeholder is not found, then check the store for that key
-	      // If the key is found in
+	      // If the key is found in the store, treat that as a cache hit
+	      // Otherwise, treat that as a cache miss
 	      var executionPromise = this.store.get(key).then(
 	        _.bind(this.onCacheHit, this, key, model, options),
 	        _.bind(this.onCacheMiss, this, key, model, options)
@@ -597,41 +825,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // On a cache miss, fetch the data using `Hoard.sync` and cache it on success/invalidate on failure.
 	  // Clears it's placeholder access only after storing or invalidating the response
 	  onCacheMiss: function (key, model, options) {
-	    var onStoreAction = _.bind(this._decreasePlaceholderAccess, this, key);
-	    var cacheOptions = _.extend({ onStoreAction: onStoreAction }, options);
-	    var onSuccess = this._wrapSuccessWithCache('read', model, cacheOptions);
-	    var onError = this._wrapErrorWithInvalidate('read', model, cacheOptions);
-	    var deferred = Hoard.defer();
+	    var callback = _.bind(this._decreasePlaceholderAccess, this, key);
+	    var cacheOptions = _.extend({
+	      onStoreSuccess: callback,
+	      onStoreError: callback
+	    }, options);
+	    options.success = this._wrapSuccessWithCache('read', model, cacheOptions);
+	    options.error = this._wrapErrorWithInvalidate('read', model, cacheOptions);
 
-	    options.success = this._responseHandler(deferred.resolve, onSuccess);
-	    options.error = this._responseHandler(deferred.reject, onError);
-	    Hoard.sync('read', model, options);
-	    return deferred.promise;
+	    return Hoard.sync('read', model, options);
 	  },
 
 	  // On a placeholder hit, wait for the live request to go through,
 	  // then resolve or reject with the response from the live request
 	  _onPlaceholderHit: function (key, options) {
 	    var deferred = Hoard.defer();
-	    var onSuccess = this._responseHandler(deferred.resolve, options.success, key);
-	    var onError = this._responseHandler(deferred.reject, options.error, key);
+	    var callback = function (promiseHandler, originalHandler, response) {
+	      if (originalHandler) { originalHandler(response); }
+	      this._decreasePlaceholderAccess(key);
+	      promiseHandler(response);
+	    };
+	    var onSuccess = _.bind(callback, this, deferred.resolve, options.success);
+	    var onError = _.bind(callback, this, deferred.reject, options.error);
 
 	    this.placeholders[key].accesses += 1;
 	    this.placeholders[key].promise.then(onSuccess, onError);
 	    return deferred.promise;
-	  },
-
-	  // A convenience method for creating handlers for cache misses and placeholder hits
-	  _responseHandler: function (promiseFactory, originalHandler, key) {
-	    return _.bind(function (response) {
-	      if (originalHandler) {
-	        originalHandler(response);
-	      }
-	      if (key) {
-	        this._decreasePlaceholderAccess(key);
-	      }
-	      promiseFactory(response);
-	    }, this);
 	  },
 
 	  // A convenience method for decrementing the count for a placeholder
@@ -641,24 +860,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if (!this.placeholders[key].accesses) {
 	      delete this.placeholders[key];
 	    }
-	  },
-
-	  _wrapSuccessWithCache: StrategyHelpers.proxyWrapSuccessWithCache,
-	  _wrapErrorWithInvalidate: StrategyHelpers.proxyWrapErrorWithInvalidate
+	  }
 	});
 
 	module.exports = Read;
-
-/***/ },
-/* 12 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var PositiveWriteStrategy = __webpack_require__(15);
-
-	module.exports = PositiveWriteStrategy.extend({ _method: 'update' });
-
 
 /***/ },
 /* 13 */
@@ -666,9 +871,9 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
-	var PositiveWriteStrategy = __webpack_require__(15);
+	var PositiveWriteStrategy = __webpack_require__(16);
 
-	module.exports = PositiveWriteStrategy.extend({ _method: 'patch' });
+	module.exports = PositiveWriteStrategy.extend({ _method: 'update' });
 
 
 /***/ },
@@ -677,19 +882,18 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
-	var Hoard = __webpack_require__(2);
-	var Strategy = __webpack_require__(6);
+	var PositiveWriteStrategy = __webpack_require__(16);
 
-	// The Delete Strategy clears aggressively clears a cached item
-	var Delete = Strategy.extend({
-	  execute: function (model, options) {
-	    var key = this.policy.getKey(model, 'delete');
-	    this.store.invalidate(key);
-	    return Hoard.sync('delete', model, options);
+	module.exports = PositiveWriteStrategy.extend({
+	  _method: 'patch',
+
+	  // A reasonable response for a PATCH call is to return the delta of the update.
+	  // Provide the original information so the cached data makes sense
+	  cacheOptions: function (model, options) {
+	    return { original: this.policy.getData(model, options) };
 	  }
 	});
 
-	module.exports = Delete;
 
 /***/ },
 /* 15 */
@@ -697,27 +901,22 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
-	var _ = __webpack_require__(7);
 	var Hoard = __webpack_require__(2);
 	var Strategy = __webpack_require__(6);
-	var StrategyHelpers = __webpack_require__(16);
 
-	// A strategy for caching a successful response. Subclasses declare a sync method to adhere use
-	module.exports = Strategy.extend({
-	  // Cache the response.
-	  // If cacheOptions.generateKeyFromResponse is true,
-	  // cache using the key from the response, rather than the request
+	// The Delete Strategy aggressively clears a cached item
+	var Delete = Strategy.extend({
 	  execute: function (model, options) {
-	    var cacheOptions = _.extend({}, options, _.result(this, 'cacheOptions'));
-	    options.success = this._wrapSuccessWithCache(this._method, model, cacheOptions);
-	    return Hoard.sync(this._method, model, options);
-	  },
-
-	  cacheOptions: {},
-
-	  _wrapSuccessWithCache: StrategyHelpers.proxyWrapSuccessWithCache
+	    var key = this.policy.getKey(model, 'delete');
+	    options.url = this.policy.getUrl(model, 'delete', options);
+	    var invalidatePromise = this.store.invalidate(key, options);
+	    var syncPromise = Hoard.sync('delete', model, options);
+	    var returnSync = function () { return syncPromise; };
+	    return invalidatePromise.then(returnSync);
+	  }
 	});
 
+	module.exports = Delete;
 
 /***/ },
 /* 16 */
@@ -727,59 +926,32 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _ = __webpack_require__(7);
 	var Hoard = __webpack_require__(2);
+	var Strategy = __webpack_require__(6);
 
-	var getStoreActionResponse = function (options) {
-	  return function () {
-	    if (options.onStoreAction) {
-	      options.onStoreAction();
-	    }
-	  }
-	};
+	// A strategy for caching a successful response. Subclasses declare a sync method to adhere use
+	module.exports = Strategy.extend({
+	  // Cache the response.
+	  // If cacheOptions.generateKeyFromResponse is true,
+	  // cache using the key from the response, rather than the request
+	  execute: function (model, options) {
+	    options.url = this.policy.getUrl(model, this._method, options);
 
-	var storeResponse = function (context, key, response, options) {
-	  var meta = context.policy.getMetadata(key, response, options);
-	  var onStoreComplete = getStoreActionResponse(options);
-	  context.store.set(key, response, meta).then(onStoreComplete, onStoreComplete);
-	};
+	    // Don't consider the sync 'complete' until storage is also complete
+	    // This ensures that the cache is in sync with the server
+	    var storeComplete = Hoard.defer();
+	    var cacheOptions = _.extend({
+	      onStoreSuccess: storeComplete.resolve,
+	      onStoreError: storeComplete.reject
+	    }, options, this.cacheOptions(model, options));
 
-	var invalidateResponse = function (context, key, response, options) {
-	  var onStoreComplete = getStoreActionResponse(options);
-	  context.store.invalidate(key).then(onStoreComplete, onStoreComplete);
-	};
-
-	var wrapMethod = function (context, method, model, options) {
-	  var key = context.policy.getKey(model, method);
-	  return _.wrap(options[options.targetMethod], function (targetMethod, response) {
-	    if (targetMethod) {
-	      targetMethod(response);
-	    }
-	    if (options.generateKeyFromResponse) {
-	      key = context.policy.getKey(model, method);
-	    }
-	    if (options.responseHandler) {
-	      options.responseHandler(context, key, response, options);
-	    }
-	  });
-	};
-
-	// Convenience methods for strategies
-	var helpers = {
-	  proxyWrapSuccessWithCache: function (method, model, options) {
-	    return wrapMethod(this, method, model, _.extend({
-	      targetMethod: 'success',
-	      responseHandler: storeResponse
-	    }, options));
+	    options.success = this._wrapSuccessWithCache(this._method, model, cacheOptions);
+	    Hoard.sync(this._method, model, options);
+	    return storeComplete.promise;
 	  },
 
-	  proxyWrapErrorWithInvalidate: function (method, model, options) {
-	    return wrapMethod(this, method, model, _.extend({
-	      targetMethod: 'error',
-	      responseHandler: invalidateResponse
-	    }, options));
-	  }
-	};
+	  cacheOptions: function (model, options) {}
+	});
 
-	module.exports = helpers;
 
 /***/ }
 /******/ ])
