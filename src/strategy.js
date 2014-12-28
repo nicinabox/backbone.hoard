@@ -91,7 +91,8 @@ _.extend(Strategy.prototype, Hoard.Events, {
 
   _storeResponse: function (key, response, options) {
     var meta = this.policy.getMetadata(key, response, options);
-    this.store.set(key, response, meta).then(
+    var finalResponse = _.extend({}, options.original, response);
+    this.store.set(key, finalResponse, meta).then(
       _.identity,
       _.bind(this.onCacheFull, this)
     ).then(

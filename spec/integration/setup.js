@@ -10,8 +10,8 @@ var Backbone = require('backbone');
 var Hoard = require('src/build/backbone.hoard.bundle');
 
 // load specs
-require('./fetch.int-spec');
-require('./save.int-spec');
+require('./read.int-spec.js');
+require('./write.int-spec.js');
 
 window.expect = chai.expect;
 chai.use(sinonChai);

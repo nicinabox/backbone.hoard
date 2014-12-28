@@ -11,10 +11,19 @@ module.exports = Strategy.extend({
   // cache using the key from the response, rather than the request
   execute: function (model, options) {
     options.url = this.policy.getUrl(model, this._method, options);
-    var cacheOptions = _.extend({}, options, _.result(this, 'cacheOptions'));
+
+    // Don't consider the sync 'complete' until storage is also complete
+    // This ensures that the cache is in sync with the server
+    var storeComplete = Hoard.defer();
+    var cacheOptions = _.extend({
+      onStoreSuccess: storeComplete.resolve,
+      onStoreError: storeComplete.reject
+    }, options, this.cacheOptions(model, options));
+
     options.success = this._wrapSuccessWithCache(this._method, model, cacheOptions);
-    return Hoard.sync(this._method, model, options);
+    Hoard.sync(this._method, model, options);
+    return storeComplete.promise;
   },
 
-  cacheOptions: {}
+  cacheOptions: function (model, options) {}
 });
