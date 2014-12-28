@@ -108,14 +108,27 @@ The amount of time, in milliseconds, that an item should be stored in the cache
 A timestamp, in milliseconds, indicating the time after which the item should no longer be stored in the cache. 
 If both `timeToLive` and `expires` are present, `expires` takes precedence.
 
-###Policy#getKey(model, method)
+###Policy#getUrl(model, options, options)
 
 Returns an identifier for the given `model` and `method` to reference in the cache.
 Defaults to the result of `model.url`.
 
+###Policy#getKey(model, method, options)
+
+Returns an identifier for the given `model` and `method` to reference in the cache.
+Defaults to Policy#getUrl.
+
+###Policy#getData(model, options)
+
+Return the database representation of the model. Defaults to `model.toJSON()`.
+
 ###Policy#shouldEvictItem(metadata)
 
 Returns `true` if the item represented by `metadata` is stale, false otherwise.
+
+###Policy#getKeysToEvict(metadata, key, value, error)
+
+Returns an array of keys to evict from cache if the cache is full. Defaults to returning all keys in the cache.
 
 ###Policy#getMetadata(key, response, [options])
 

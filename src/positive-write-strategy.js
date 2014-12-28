@@ -3,7 +3,6 @@
 var _ = require('underscore');
 var Hoard = require('./backbone.hoard');
 var Strategy = require('./strategy');
-var StrategyHelpers = require('./strategy-helpers');
 
 // A strategy for caching a successful response. Subclasses declare a sync method to adhere use
 module.exports = Strategy.extend({
@@ -11,12 +10,20 @@ module.exports = Strategy.extend({
   // If cacheOptions.generateKeyFromResponse is true,
   // cache using the key from the response, rather than the request
   execute: function (model, options) {
-    var cacheOptions = _.extend({}, options, _.result(this, 'cacheOptions'));
+    options.url = this.policy.getUrl(model, this._method, options);
+
+    // Don't consider the sync 'complete' until storage is also complete
+    // This ensures that the cache is in sync with the server
+    var storeComplete = Hoard.defer();
+    var cacheOptions = _.extend({
+      onStoreSuccess: storeComplete.resolve,
+      onStoreError: storeComplete.reject
+    }, options, this.cacheOptions(model, options));
+
     options.success = this._wrapSuccessWithCache(this._method, model, cacheOptions);
-    return Hoard.sync(this._method, model, options);
+    Hoard.sync(this._method, model, options);
+    return storeComplete.promise;
   },
 
-  cacheOptions: {},
-
-  _wrapSuccessWithCache: StrategyHelpers.proxyWrapSuccessWithCache
+  cacheOptions: function (model, options) {}
 });

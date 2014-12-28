@@ -54,7 +54,7 @@ _.extend(MetaStore.prototype, Hoard.Events, {
   },
 
   _set: function (key, meta) {
-    return this._setItem(key, JSON.stringify(meta));
+    return this._setItem(key, meta);
   },
 
   _setItem: StoreHelpers.proxySetItem

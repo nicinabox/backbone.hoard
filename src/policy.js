@@ -20,8 +20,18 @@ _.extend(Policy.prototype, Hoard.Events, {
 
   // Generate a key for the given model
   // The key will be used to determine uniqueness in the store
-  getKey: function (model, method) {
+  getKey: function (model, method, options) {
+    return this.getUrl(model, method, options);
+  },
+
+  // Get the url for the given model
+  getUrl: function (model, method, options) {
     return _.result(model, 'url');
+  },
+
+  // Get the data from the given model
+  getData: function (model, options) {
+    return model.toJSON();
   },
 
   // Generate metadata
@@ -41,6 +51,12 @@ _.extend(Policy.prototype, Hoard.Events, {
   // Return false otherwise.
   shouldEvictItem: function (meta) {
     return meta.expires != null && meta.expires < Date.now();
+  },
+
+  // Return an array of keys to evict
+  // By default, clear the world
+  getKeysToEvict: function (metadata, key, value, error) {
+    return _.keys(metadata);
   }
 });
 

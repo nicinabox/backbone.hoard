@@ -6,8 +6,8 @@ var Hoard = require('./backbone.hoard');
 module.exports = {
   proxySetItem: function (key, value) {
     try {
-      this.backend.setItem(key, value);
-      return Hoard.Promise.resolve();
+      this.backend.setItem(key, JSON.stringify(value));
+      return Hoard.Promise.resolve(value);
     } catch (e) {
       return Hoard.Promise.reject(e);
     }

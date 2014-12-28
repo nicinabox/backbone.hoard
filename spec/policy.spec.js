@@ -4,17 +4,23 @@ var Backbone = require('backbone');
 var Policy = require('src/policy');
 
 describe("Policy", function () {
-
-  describe("getKey", function () {
+  describe("backbone configuration", function () {
     beforeEach(function () {
-      this.Model = Backbone.Model.extend({ url: 'url' });
-      this.model = new this.Model();
+      this.Model = Backbone.Model.extend({url: 'url'});
+      this.model = new this.Model({ id: 1, value: 1 });
       this.policy = new Policy();
-      this.key = this.policy.getKey(this.model);
     });
 
-    it("should return the result of the url, by default", function () {
-      expect(this.key).to.equal(this.model.url);
+    it("getKey should return the result of the url, by default", function () {
+      expect(this.policy.getKey(this.model)).to.equal(this.model.url);
+    });
+
+    it("getUrl should return the result of the url, by default", function () {
+      expect(this.policy.getUrl(this.model)).to.equal(this.model.url);
+    });
+
+    it("getData should return the attributes of the given model", function () {
+      expect(this.policy.getData(this.model)).to.deep.eql({ id: 1, value: 1 });
     });
   });
 

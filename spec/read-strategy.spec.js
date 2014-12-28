@@ -5,7 +5,6 @@ var Store = require('src/store');
 var Policy = require('src/policy');
 var Backbone = require('backbone');
 var ReadStrategy = require('src/read-strategy');
-var Helpers = require('src/strategy-helpers');
 
 describe("Read Strategy", function () {
   beforeEach(function () {
@@ -170,11 +169,6 @@ describe("Read Strategy", function () {
       it("only calls sync once", function () {
         expect(Hoard.sync).to.have.been.calledOnce
           .and.calledWith('read', this.models[0], this.options);
-      });
-
-      xit("assigns the proper attributes to the models", function () {
-        expect(this.models[0].toJSON()).to.eql(this.response);
-        expect(this.models[1].toJSON()).to.eql(this.response);
       });
     });
   });

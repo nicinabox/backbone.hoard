@@ -3,7 +3,6 @@
 var _ = require('underscore');
 var Hoard = require('./backbone.hoard');
 var Strategy = require('./strategy');
-var StrategyHelpers = require('./strategy-helpers');
 
 // The `Read` Strategy keeps a hash, `this.placeholders` of cache keys for which it is currently retrieving data.
 // Only one request, the 'live' request, for a given key will actually go through to retrieve the data from its source,
@@ -15,7 +14,8 @@ var Read = Strategy.extend({
   },
 
   execute: function (model, options) {
-    var key = this.policy.getKey(model, 'read');
+    var key = this.policy.getKey(model, 'read', options);
+    options.url = this.policy.getUrl(model, 'read', options);
 
     // If a placeholder is hit, then a request has already been made for this key
     // Resolve when that request has returned
@@ -23,7 +23,8 @@ var Read = Strategy.extend({
       return this._onPlaceholderHit(key, options);
     } else {
       // If a placeholder is not found, then check the store for that key
-      // If the key is found in
+      // If the key is found in the store, treat that as a cache hit
+      // Otherwise, treat that as a cache miss
       var executionPromise = this.store.get(key).then(
         _.bind(this.onCacheHit, this, key, model, options),
         _.bind(this.onCacheMiss, this, key, model, options)
@@ -64,41 +65,32 @@ var Read = Strategy.extend({
   // On a cache miss, fetch the data using `Hoard.sync` and cache it on success/invalidate on failure.
   // Clears it's placeholder access only after storing or invalidating the response
   onCacheMiss: function (key, model, options) {
-    var onStoreAction = _.bind(this._decreasePlaceholderAccess, this, key);
-    var cacheOptions = _.extend({ onStoreAction: onStoreAction }, options);
-    var onSuccess = this._wrapSuccessWithCache('read', model, cacheOptions);
-    var onError = this._wrapErrorWithInvalidate('read', model, cacheOptions);
-    var deferred = Hoard.defer();
+    var callback = _.bind(this._decreasePlaceholderAccess, this, key);
+    var cacheOptions = _.extend({
+      onStoreSuccess: callback,
+      onStoreError: callback
+    }, options);
+    options.success = this._wrapSuccessWithCache('read', model, cacheOptions);
+    options.error = this._wrapErrorWithInvalidate('read', model, cacheOptions);
 
-    options.success = this._responseHandler(deferred.resolve, onSuccess);
-    options.error = this._responseHandler(deferred.reject, onError);
-    Hoard.sync('read', model, options);
-    return deferred.promise;
+    return Hoard.sync('read', model, options);
   },
 
   // On a placeholder hit, wait for the live request to go through,
   // then resolve or reject with the response from the live request
   _onPlaceholderHit: function (key, options) {
     var deferred = Hoard.defer();
-    var onSuccess = this._responseHandler(deferred.resolve, options.success, key);
-    var onError = this._responseHandler(deferred.reject, options.error, key);
+    var callback = function (promiseHandler, originalHandler, response) {
+      if (originalHandler) { originalHandler(response); }
+      this._decreasePlaceholderAccess(key);
+      promiseHandler(response);
+    };
+    var onSuccess = _.bind(callback, this, deferred.resolve, options.success);
+    var onError = _.bind(callback, this, deferred.reject, options.error);
 
     this.placeholders[key].accesses += 1;
     this.placeholders[key].promise.then(onSuccess, onError);
     return deferred.promise;
-  },
-
-  // A convenience method for creating handlers for cache misses and placeholder hits
-  _responseHandler: function (promiseFactory, originalHandler, key) {
-    return _.bind(function (response) {
-      if (originalHandler) {
-        originalHandler(response);
-      }
-      if (key) {
-        this._decreasePlaceholderAccess(key);
-      }
-      promiseFactory(response);
-    }, this);
   },
 
   // A convenience method for decrementing the count for a placeholder
@@ -108,10 +100,7 @@ var Read = Strategy.extend({
     if (!this.placeholders[key].accesses) {
       delete this.placeholders[key];
     }
-  },
-
-  _wrapSuccessWithCache: StrategyHelpers.proxyWrapSuccessWithCache,
-  _wrapErrorWithInvalidate: StrategyHelpers.proxyWrapErrorWithInvalidate
+  }
 });
 
 module.exports = Read;
