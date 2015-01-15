@@ -7,6 +7,20 @@ Configurable caching for Backbone. Hoard is designed to make it easy to avoid
 extraneous AJAX requests by caching responses and making sure only one request goes out for the same url, 
 all while remaining highly configurable and customizable.
 
+#Installing
+
+Hoard is available on npm and bower as `backbone.hoard`.
+
+```
+npm install backbone.hoard
+
+OR
+
+bower install backbone.hoard
+```
+
+When using bower, `dist/backbone.hoard.js` should work for all environments.
+
 #Example
 ```js
 var cacheControl = new Backbone.Hoard.Control();
