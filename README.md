@@ -3,6 +3,8 @@
 backbone.hoard
 --------------
 
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/cmaher/backbone.hoard?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Configurable caching for Backbone. Hoard is designed to make it easy to avoid 
 extraneous AJAX requests by caching responses and making sure only one request goes out for the same url, 
 all while remaining highly configurable and customizable.
