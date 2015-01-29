@@ -93,10 +93,12 @@ _.extend(Control.prototype, Hoard.Events, {
   // The main use of Hoard
   // Return a sync method fully configured for the cache behavior of this Control
   getModelSync: function () {
-    return _.bind(this.sync, this);
+    var modelSync = _.bind(this.sync, this);
+    modelSync.hoardControl = this;
+    return modelSync;
   }
 });
 
-Control.extend = Hoard.extend;
+Control.extend = Hoard._proxyExtend;
 
 module.exports = Control;
