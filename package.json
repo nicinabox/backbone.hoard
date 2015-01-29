@@ -1,8 +1,8 @@
 {
   "name": "backbone.hoard",
   "repository": "https://github.com/cmaher/backbone.hoard",
-  "version": "0.2.1",
-  "description": "Local caching for Backbone",
+  "version": "0.3.0",
+  "description": "XHR de-duping and local caching for Backbone",
   "main": "dist/backbone.hoard.js",
   "scripts": {
     "test": "gulp test"
@@ -11,7 +11,8 @@
     "backbone",
     "cache",
     "localstorage",
-    "sync"
+    "sync",
+    "de-dupe"
   ],
   "author": "Christian Maher",
   "license": "MIT",
