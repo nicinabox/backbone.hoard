@@ -143,13 +143,20 @@ module.exports = function (storageName, storage) {
       });
     });
 
-    describe("when the cached value has expired", function () {
+    describe("when the cached value should be evicted", function () {
       beforeEach(function () {
         this.key = '/id-plus-one/1';
-        this.control.store.set(this.key, { id: 1, value: 'super-value' });
-        this.control.store.metaStore.set(this.key, { expires: Date.now() - 1000 });
-        this.m1 = new this.Model({ id: 1 });
-        return this.m1.fetch();
+        this.control.policy.shouldEvictItem = function () {
+          return true;
+        };
+        return this.control.store.set(this.key, {id: 1, value: 'super-value'})
+          .then(function () {
+            return this.control.store.metaStore.set(this.key, {});
+          }.bind(this))
+          .then(function () {
+            this.m1 = new this.Model({id: 1});
+            return this.m1.fetch();
+          }.bind(this));
       });
 
       it("sets it's value to the server response", function () {

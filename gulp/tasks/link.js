@@ -9,4 +9,8 @@ gulp.task('link', function () {
   var cmd = util.format('ln -s -f %s/src %s/node_modules', srcDir, srcDir);
   console.log(cmd);
   exec(cmd);
+
+  cmd = util.format('ln -s -f %s/recipe %s/node_modules', srcDir, srcDir);
+  console.log(cmd);
+  exec(cmd);
 });
