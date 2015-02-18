@@ -113,16 +113,9 @@ The returned method has all of the same properties as the control's `sync` metho
 
 ##Policy
 
-The `Policy` determines meta information about cached items
-
-###Policy#timeToLive
-
-The amount of time, in milliseconds, that an item should be stored in the cache
-
-###Policy#expires
-
-A timestamp, in milliseconds, indicating the time after which the item should no longer be stored in the cache. 
-If both `timeToLive` and `expires` are present, `expires` takes precedence.
+The `Policy` determines meta information about cached items.
+The default implementation is bare-bones. Look at `recipes/time-sensitive-policy`
+for a more interesting policy implementation.
 
 ###Policy#getUrl(model, options, options)
 
@@ -138,6 +131,22 @@ Defaults to Policy#getUrl.
 
 Return the database representation of the model. Defaults to `model.toJSON()`.
 
+###Policy#getCollection(model, options)
+
+Return the collection associated with the model, if any. Defaults to `model.collection`.
+
+###Policy#areModelsSame(model, otherModel)
+
+Return true if two models should be considered the same. Return false otherwise.
+`model` and `otherModel` are provided as their attribute objects.
+Defaults to returning true if the models have the same id.
+
+###Policy#findSameModel(collection, model)
+
+Look through `collection` for a model equivalent to `model`, and return that found model.
+Delegate to `Policy#areModelsSame` for model comparison.
+`collection` is provided as an array of objects. `model` is provided as an object.
+
 ###Policy#shouldEvictItem(metadata)
 
 Returns `true` if the item represented by `metadata` is stale, false otherwise.
@@ -146,12 +155,13 @@ Returns `true` if the item represented by `metadata` is stale, false otherwise.
 
 Returns an array of keys to evict from cache if the cache is full. Defaults to returning all keys in the cache.
 
-###Policy#getMetadata(key, response, [options])
+###Policy#getMetadata(key, response, options)
 
 Returns an object representing the metadata for the given `key`, `response`, and `options`.
 
-By default, only expiration data is returned, based on the Policy's `timeToLive` or `expires` property. 
+Returns an empty object by default.
 This behavior is agnostic of any arguments provided, which are available for custom implementations.
+See `recipe/time-sensitive-policy` for an example of using metadata for cache expiration
 
 ##Strategy
 
