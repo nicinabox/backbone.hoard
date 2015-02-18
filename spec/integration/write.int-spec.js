@@ -6,6 +6,10 @@ var Hoard = require('src/backbone.hoard');
 
 module.exports = function (storageName, storage) {
   describe("Writing with " + storageName, function () {
+    afterEach(function () {
+      return storage.clear();
+    });
+
     beforeEach(function () {
       this.sinon.stub(Hoard, 'backend', storage);
       this.control = new Hoard.Control();
@@ -259,4 +263,4 @@ module.exports = function (storageName, storage) {
       });
     });
   });
-}
+};

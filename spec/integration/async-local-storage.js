@@ -20,5 +20,10 @@ module.exports = {
     return Hoard.Promise.resolve().then(function () {
       return localStorage.removeItem(key);
     });
+  },
+
+  // only used by spec teardown
+  clear: function () {
+    localStorage.clear();
   }
 };

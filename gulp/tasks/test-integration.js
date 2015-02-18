@@ -7,6 +7,6 @@ var argv = require('yargs').argv;
 gulp.task('test:integration', ['test:integration:bundle'], function (done) {
   karma.start({
     configFile: process.env.PWD + '/karma.conf.js',
-    singleRun: !argv.karmaDebug
+    singleRun: !argv.tdd
   }, done);
 });
