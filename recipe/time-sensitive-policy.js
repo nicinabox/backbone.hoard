@@ -1,6 +1,6 @@
 'use strict';
 
-var Policy = require('src/policy');
+var Policy = require('../src/policy');
 
 module.exports = Policy.extend({
   // How long, in milliseconds, should a cached item be considered 'fresh'?

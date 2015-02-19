@@ -50,7 +50,6 @@ Promise.all(fetches).then(function () {
 
  - Backbone 1.0.0 - 1.1.2
  - underscore 1.4.4 - 1.7.0
- - `localStorage`
  - An es6-compliant `Promise`
  
 #API
@@ -179,7 +178,7 @@ Returns a `Promise` that resolves if the sync action is successful or rejects if
 ##Store
 
 The `Store` encapsulates all interaction with the backing persistence API. 
-Even though the default implementation uses `localStorage` for persistence, 
+Even though the default implementation uses an api similar to `localStorage` for persistence,
 all interactions with `Store` are asynchronous. 
 This behavior makes it possible to use other types of client-side storage, such as IndexedDB or WebSQL
 
@@ -226,19 +225,20 @@ Otherwise, you will need to configure Hoard with an es6-compliant Promise implem
  
 ##Hoard.backend
 
-By default, Hoard will use `localStorage` to cache data and metadata.
-If support for older browsers is desired, be sure to use a polyfill. 
-`Hoard.backend` can also be set to `sessionStorage`, or anything matching a `localStorage` API supporting:
+By default, Hoard will use an in-memory store to cache data and metadata.
+Using an in-memory store ensures that the cache will never be stale on a page refresh.
+If persistence beyond page refreshes is desired, `Hoard.backend` can also be set to
+`localStorage`, `sessionStorage`, or anything matching a `localStorage` API supporting:
 
  - `backend.setItem`
  - `backend.getItem`
  - `backend.removeItem`
  
  ```js
- // ex: using sessionStorage instead of local storage
- // Make Stores use sessionStorage unless explicitly told to use something else
- Hoard.backend = sessionStorage;
+ // ex: using localStorage instead of the in-memory store
+ // Make Stores use localStorage unless explicitly told to use something else
+ Hoard.backend = localStorage;
  
- // Make all instantces of LocalStore use localStorage
- var LocalStore = Hoard.Store.extend({ backend: localStorage });
+ // Make all instantces of SessionStore use SessionStorage
+ var SessionStore = Hoard.Store.extend({ backend: sessionStorage });
  ```

@@ -14,6 +14,8 @@ var asyncLocalStorage = require('./async-local-storage');
 var readSpecs = require('./read.int-spec.js');
 var writeSpecs = require('./write.int-spec.js');
 
+readSpecs('Backend', Hoard.backend);
+writeSpecs('Backend', Hoard.backend);
 readSpecs('localStorage', localStorage);
 writeSpecs('localStorage', localStorage);
 readSpecs('asyncLocalStorage', asyncLocalStorage);
@@ -41,5 +43,4 @@ beforeEach(function () {
 afterEach(function () {
   this.server.restore();
   this.sinon.restore();
-  localStorage.clear();
 });
