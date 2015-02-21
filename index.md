@@ -3,16 +3,9 @@ layout: default
 title: Backbone.Hoard - XHR De-Duping and Configurable Caching
 ---
 
-[![Build Status](https://travis-ci.org/cmaher/backbone.hoard.svg?branch=master)](https://travis-ci.org/cmaher/backbone.hoard)
-
-backbone.hoard
---------------
-
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/cmaher/backbone.hoard?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-Configurable caching for Backbone. Hoard is designed to make it easy to avoid
+Backbone.Hoard is designed to make it easy to avoid
 extraneous AJAX requests by caching responses and making sure only one request goes out for the same url,
-all while remaining highly configurable and customizable. [Read about the reasoning behind Backbone.Hoard to find out if it's right for you](http://www.conductor.com/nightlight/using-backbone-hoard-spare-server-sanity/).
+all while remaining highly configurable and customizable.
 
 #Installing
 
