@@ -1,0 +1,99 @@
+span.monospace-text {
+  font-family: monospace;
+}
+
+/***DEMO***/
+
+div.demo-container {
+  background-color: #636363;
+  padding: 2rem 0;
+}
+
+.demo-container .demo {
+  margin-top: 0;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 5%;
+  padding-right: 5%;
+}
+
+/***WORKSPACE***/
+
+.workspace .widget-row:not(:first-child) {
+  margin-top: 2rem
+}
+
+.workspace .widget-row::after {
+  clear: both;
+  display: table;
+  content: "";
+}
+
+.workspace .widget {
+  display: block;
+  float: left;
+  width: 47.5%;
+  height: 10rem;
+  box-sizing: border-box;
+  padding-top: 4rem;
+  padding-bott: 4rem;
+}
+
+.workspace .widget:first-child {
+  margin-right: 5%;
+}
+
+.workspace .widget.widget-1 {
+  background-color: #76A170;
+}
+
+.workspace .widget.widget-2 {
+  background-color: #e5cfa9;
+}
+
+.workspace .widget.widget-3 {
+  background-color: #8cd0d3;
+}
+
+.workspace .widget.widget-4 {
+  background-color: #cc9393;
+}
+
+/***ROUTING***/
+
+.routing .routing-app {
+  display: flex;
+  flex-direction: row;
+}
+
+.routing-app .users-list {
+  list-style: none;
+  width: 45%;
+  box-sizing: border-box;
+  margin: auto;
+}
+
+.routing-app .users-details {
+  list-style: none;
+  width: 45%;
+  box-sizing: border-box;
+}
+
+.users-list .user {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.user .avatar {
+  height: 6rem;
+}
+
+.user .user-link {
+  margin-left: 2rem;
+  cursor: pointer;
+}
+
+.users-details .avatar {
+  height: 8rem;
+}
