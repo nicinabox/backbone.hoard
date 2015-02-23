@@ -45,51 +45,36 @@
     <section>
       <h1>Backbone.Hoard</h1>
 
-      <h3>XHR Consolidation and Configurable Caching for Backbone</h3>
-
+      <h3 class="fragment">XHR Consolidation <span class="fragment">and Caching</span></h3>
+      <h5>for Backbone.js</h5>
       <p>
         <small>
           <a href="https://github.com/cmaher">Christian Maher</a> /
           <a href="http://twitter.com/christiansmaher">@christiansmaher</a>
         </small>
       </p>
-    </section>
-
-    <section>
-      <h2>Slides</h2>
 
       <p>
-        <a href="http://cmaher.github.io/backbone.hoard/slides">cmaher.github.io/backbone.hoard/slides</a>
+        <small>
+          <a href="http://cmaher.github.io/backbone.hoard/slides">cmaher.github.io/backbone.hoard/slides</a>
+        </small>
       </p>
+
+      <aside class="notes">
+        <ul>
+          <li>Backbone's goal is to be minimal</li>
+          <li>Marionette simplifies view management</li>
+          <li>Hoard simplifies how you handle your data</li>
+        </ul>
+      </aside>
     </section>
 
     <section>
-      <h2>Example</h2>
-<pre><code>var MyModel = Backbone.Model.extend({
-  url: function () { return '/models/' + this.id; },
-  sync: new Backbone.Hoard.Control().getModelSync()
-});
-
-var model1 = new MyModel({ id: 1 });
-var model2 = new MyModel({ id: 1 });
-var model3 = new MyModel({ id: 1 });
-
-Promise.all([model1.fetch(), model2.fetch()]).then(function () {
-  // XHR Consolidation: model1 and model2 have the same attributes
-  // Only 1 ajax request has been made
-  return model3.fetch();
-}).then(function () {
-  // Caching: model1, model2, and model3 have the same attributes
-  // Only 1 ajax request has been made
-});</code></pre>
-    </section>
-
-    <section>
-      <h2>But...Why?</h2>
+      <h2>Use Cases</h2>
 
       <ul>
-        <li class="fragment">Dashboard Applications</li>
-        <li class="fragment">Route-Specific Data</li>
+        <li class="fragment">Dashboard Applications (XHR Consolidation)</li>
+        <li class="fragment">Route-Specific Data (Caching)</li>
       </ul>
 
       <aside class="notes">
@@ -120,9 +105,11 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
         <aside class="notes">
           <strong>NAVIGATE DOWN</strong>
           <ul>
-            <li>XHR consolidation</li>
-            <li>user-controlled data === complexity</li>
             <li>fetching 4 different things</li>
+            <li>Dashboard App: An app featuring custom reports created by the user</li>
+            <li>data loaded on page load</li>
+            <li>user-controlled data === complexity</li>
+            <li>Dashboards benefit from XHR consolidation</li>
           </ul>
         </aside>
       </section>
@@ -144,8 +131,13 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
         </div>
 
         <aside class="notes">
+          <strong>NAVIGATE DOWN</strong>
           <ul>
             <li>fetching 2 different things twice each</li>
+            <li>Dashboard App: An app featuring custom reports created by the user</li>
+            <li>data loaded on page load</li>
+            <li>user-controlled data === complexity</li>
+            <li>Dashboards benefit from XHR consolidation</li>
           </ul>
         </aside>
       </section>
@@ -167,12 +159,86 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
         </div>
 
         <aside class="notes">
+          <strong>NAVIGATE RIGHT</strong>
           <ul>
             <li>fetching the same (potentially expensive) thing again and again...</li>
+            <li>Dashboard App: An app featuring custom reports created by the user</li>
+            <li>data loaded on page load</li>
+            <li>user-controlled data === complexity</li>
+            <li>Dashboards benefit from XHR consolidation</li>
+            <li>Hoard lets us make multiple fetch calls all at the same time and only make one real XHR</li>
           </ul>
         </aside>
       </section>
     </section>
+
+    <section>
+      <h2>XHR Consolidation</h2>
+      <p>Prevent multiple simultaneous requests to the same endpoint</p>
+    </section>
+
+    <section>
+      <h2>XHR Consolidation</h2>
+      <h5>Setup Hoard</h5>
+<pre><code class="javascript">var cacheControl = new Backbone.Hoard.Control();
+var MyModel = Backbone.Model.extend({
+  url: function () { return '/models/' + this.id; },
+  sync: cacheControl.getModelSync()
+});
+
+var model1 = new MyModel({ id: 1 });
+var model2 = new MyModel({ id: 1 });
+</code></pre>
+
+      <aside class="notes">
+        <ul>
+          <li>url used for data access and cache key</li>
+          <li>control + getModelSync === entry point for Hoard</li>
+        </ul>
+      </aside>
+    </section>
+
+    <section>
+      <h2>XHR Consolidation</h2>
+      <h5>In Action</h5>
+<pre><code class="javascript">Promise.all([model1.fetch(), model2.fetch()]).then(function () {
+  // only 1 ajax request has been made
+  doStuff();
+});</code></pre>
+
+      <aside class="notes">
+        <ul>
+          <li>XHR Consolidation -- Don't make multiple of the same request at the same time</li>
+          <li>Hoard sees mulitple requests for the same URL at the same time</li>
+        </ul>
+      </aside>
+    </section>
+
+    <!--<section>-->
+      <!--<h2>Configurable Caching</h2>-->
+<!--<pre><code class="javascript">var MyModel = Backbone.Model.extend({-->
+  <!--url: function () { return '/models/' + this.id; }-->
+<!--});-->
+
+<!--Backbone.Hoard.backend = localStorage;-->
+<!--var localControl = new Backbone.Hoard.Control();-->
+<!--var LocalModel = MyModel.extend({-->
+  <!--sync: localControl.getModelSync()-->
+<!--});-->
+
+<!--var sessionControl = new Backbone.Hoard.Control({-->
+  <!--backend: sessionStorage-->
+<!--});-->
+<!--var SessionModel = MyModel.extend({-->
+  <!--sync: sessionControl.getModelSync()-->
+<!--});</code></pre>-->
+
+      <!--<aside class="notes">-->
+        <!--<ul>-->
+          <!--<li>Configure Cache backing on a per-control basis</li>-->
+        <!--</ul>-->
+      <!--</aside>-->
+    <!--</section>-->
 
     <section>
       <section>
@@ -184,18 +250,18 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
 
             <div class="routing-app">
               <ul class="users-list">
-                <li><a href="#/5">Users</a></li>
+                <li><a href="#/6">Users</a></li>
                 <li class="user">
                   <img class="avatar" src="./images/cmaher-now.jpg">
-                  <a href="#/5/1" class="user-link">cmaher (now)</a>
+                  <a href="#/6/1" class="user-link">cmaher (now)</a>
                 </li>
                 <li class="user">
                   <img class="avatar" src="./images/cmaher-then.jpg">
-                  <a href="#/5/2" class="user-link">cmaher (then)</a>
+                  <a href="#/6/2" class="user-link">cmaher (then)</a>
                 </li>
                 <li class="user">
                   <img class="avatar" src="./images/sloth.jpg">
-                  <a href="#/5/3" class="user-link">sloth</a>
+                  <a href="#/6/3" class="user-link">sloth</a>
                 </li>
               </ul>
               <div class="users-details">
@@ -224,6 +290,13 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
               </p>
               <ul>
                 <li>Fetch and render (always)</li>
+                <li>
+                  <p>Isomorphic Style</p>
+                  <ul>
+                    <li>NOT as in Isomorphic client/server JS</li>
+                    <li>Isomorphic as in code is written the same way regardless of state</li>
+                  </ul>
+                </li>
               </ul>
             </li>
           </ul>
@@ -239,18 +312,18 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
 
             <div class="routing-app">
               <ul class="users-list">
-                <li><a href="#/5">Users</a></li>
+                <li><a href="#/6">Users</a></li>
                 <li class="user">
                   <img class="avatar" src="./images/cmaher-now.jpg">
-                  <a href="#/5/1" class="user-link">cmaher (now)</a>
+                  <a href="#/6/1" class="user-link">cmaher (now)</a>
                 </li>
                 <li class="user">
                   <img class="avatar" src="./images/cmaher-then.jpg">
-                  <a href="#/5/2" class="user-link">cmaher (then)</a>
+                  <a href="#/6/2" class="user-link">cmaher (then)</a>
                 </li>
                 <li class="user">
                   <img class="avatar" src="./images/sloth.jpg">
-                  <a href="#/5/3" class="user-link">sloth</a>
+                  <a href="#/6/3" class="user-link">sloth</a>
                 </li>
               </ul>
               <div class="users-details">
@@ -260,7 +333,7 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
 
                 <p>Following</p>
                 <ul>
-                  <li><a href="#/5/3" class="user-link">Space Sloth</a></li>
+                  <li><a href="#/6/3" class="user-link">Space Sloth</a></li>
                 </ul>
               </div>
             </div>
@@ -277,18 +350,18 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
 
             <div class="routing-app">
               <ul class="users-list">
-                <li><a href="#/5">Users</a></li>
+                <li><a href="#/6">Users</a></li>
                 <li class="user">
                   <img class="avatar" src="./images/cmaher-now.jpg">
-                  <a href="#/5/1" class="user-link">cmaher (now)</a>
+                  <a href="#/6/1" class="user-link">cmaher (now)</a>
                 </li>
                 <li class="user">
                   <img class="avatar" src="./images/cmaher-then.jpg">
-                  <a href="#/5/2" class="user-link">cmaher (then)</a>
+                  <a href="#/6/2" class="user-link">cmaher (then)</a>
                 </li>
                 <li class="user">
                   <img class="avatar" src="./images/sloth.jpg">
-                  <a href="#/5/3" class="user-link">sloth</a>
+                  <a href="#/6/3" class="user-link">sloth</a>
                 </li>
               </ul>
               <div class="users-details">
@@ -298,7 +371,7 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
 
                 <p>Following</p>
                 <ul>
-                  <li><a href="#/5/1" class="user-link">Christian (now)</a></li>
+                  <li><a href="#/6/1" class="user-link">Christian (now)</a></li>
                 </ul>
               </div>
             </div>
@@ -315,18 +388,18 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
 
             <div class="routing-app">
               <ul class="users-list">
-                <li><a href="#/5">Users</a></li>
+                <li><a href="#/6">Users</a></li>
                 <li class="user">
                   <img class="avatar" src="./images/cmaher-now.jpg">
-                  <a href="#/5/1" class="user-link">cmaher (now)</a>
+                  <a href="#/6/1" class="user-link">cmaher (now)</a>
                 </li>
                 <li class="user">
                   <img class="avatar" src="./images/cmaher-then.jpg">
-                  <a href="#/5/2" class="user-link">cmaher (then)</a>
+                  <a href="#/6/2" class="user-link">cmaher (then)</a>
                 </li>
                 <li class="user">
                   <img class="avatar" src="./images/sloth.jpg">
-                  <a href="#/5/3" class="user-link">sloth</a>
+                  <a href="#/6/3" class="user-link">sloth</a>
                 </li>
               </ul>
               <div class="users-details">
@@ -336,7 +409,7 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
 
                 <p>Following</p>
                 <ul>
-                  <li><a href="#/5/1" class="user-link">Christian (now)</a></li>
+                  <li><a href="#/6/1" class="user-link">Christian (now)</a></li>
                 </ul>
               </div>
             </div>
@@ -346,12 +419,115 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
     </section>
 
     <section>
-      <h2>Ok, but what about...</h2>
+      <h2>Caching</h2>
+      <p>Prevent a request to an endpoint if that endpoint has been requested before</p>
+    </section>
+
+    <!--<section>-->
+      <!--<h2>Caching</h2>-->
+      <!--<h5>Setup Hoard</h5>-->
+<!--<pre><code class="javascript">var cacheControl = new Backbone.Hoard.Control();-->
+<!--var MyModel = Backbone.Model.extend({-->
+  <!--url: function () { return '/models/' + this.id; },-->
+  <!--sync: cacheControl.getModelSync()-->
+<!--});-->
+
+<!--var model1 = new MyModel({ id: 1 });-->
+<!--var model2 = new MyModel({ id: 1 });-->
+<!--</code></pre>-->
+
+      <!--<aside class="notes">-->
+        <!--<ul>-->
+          <!--<li>Same setup as before (yay)</li>-->
+        <!--</ul>-->
+      <!--</aside>-->
+    <!--</section>-->
+
+    <!--<section>-->
+      <!--<h2>Caching</h2>-->
+<!--<pre><code class="javascript">model1.fetch().then(function () {-->
+  <!--return model2.fetch();-->
+<!--}).then(function () {-->
+  <!--// Only 1 ajax request has been made-->
+  <!--doStuff();-->
+<!--});</code></pre>-->
+
+      <!--<aside class="notes">-->
+        <!--<ul>-->
+          <!--<li>Caching -- Don't make a request if we've already made it</li>-->
+          <!--<li>Hoard sees the cached value for the same url</li>-->
+        <!--</ul>-->
+      <!--</aside>-->
+    <!--</section>-->
+
+    <section>
+      <h2>Caching Route-Specific Data</h2>
+      <h3>Without Hoard</h3>
+      <pre><code class="javascript">var routePromise;
+var model = collection.get(modelId);
+if (model) {
+  routePromise = Promise.resolve();
+} else {
+  model = new MyModel({ id: modelId });
+  collection.add(model);
+  routePromise = model.fetch();
+}
+routePromise.then(function () {
+  doRoute(model);
+});</code></pre>
+
+      <aside class="notes">
+        <ul>
+          <li>Tedious (can be encapsulated, but a lot to keep in head when overriding)</li>
+          <li>Shared data between routes -- easy to corrupt</li>
+          <li>Maybe in this case, the collection is only here as a manual cache -- heavy</li>
+        </ul>
+      </aside>
+    </section>
+
+    <section>
+      <h2>Caching Route-Specific Data</h2>
+      <h3>With Hoard</h3>
+      <pre><code class="javascript">var model = new MyModel({ id: modelId });
+model.fetch().then(function () {
+  doRoute(model);
+});</code></pre>
+
+      <aside class="notes">
+        <ul>
+          <li>Same code every time</li>
+          <li>
+            <p>Same data, different model instance</p>
+            <ul>
+              <li>deliberate difference</li>
+              <li>disposable models are powerful</li>
+              <li>prevent memory leaks</li>
+              <li>prevent event leaks</li>
+              <li>prevent data corruption</li>
+            </ul>
+          </li>
+        </ul>
+      </aside>
+    </section>
+
+    <section>
+      <h2>What About...</h2>
 
       <ul>
-        <li>backbone-fetch-cache</li>
-        <li>backbone.cachingSync</li>
-        <li>ETags</li>
+        <li class="fragment">
+          Backbone Plugins
+          <ul>
+            <li>backbone-fetch-cache</li>
+            <li>backbone.cachingSync</li>
+          </ul>
+        </li>
+        <li class="fragment">
+          HTTP Headers
+          <ul>
+            <li>cache-control</li>
+            <li>etag</li>
+          <ul>
+        </li>
       </ul>
 
       <aside class="notes">
@@ -365,8 +541,26 @@ Promise.all([model1.fetch(), model2.fetch()]).then(function () {
     </section>
 
     <section>
-      <h2>(Future) URL Interpretation</h2>
-      <pre><code>var coll = new MyCollection({ url: '/models' });
+      <h5>(Future)</h5>
+      <h2>URL Interpretation</h2>
+      <ul>
+        <li class="fragment">
+          <p>Good RESTful APIs establish patterns</p>
+          <ul>
+            <li>?page=5</li>
+            <li>?offset=100</li>
+            <li>?filter="odd_id"</li>
+            <li>?ids=1,2,3</li>
+          </ul>
+        </li>
+        <li class="fragment">Allow developers to capture those patterns on the client</li>
+      </ul>
+    </section>
+
+    <section>
+      <h5>(Future)</h5>
+      <h2>URL Interpretation</h2>
+      <pre><code class="javascript">var coll = new MyCollection({ url: '/models' });
 var filtered = new MyCollection({ url: '/models?filter="odd_id"' });
 Promise.all([coll.fetch(), filtered.fetch()]).then(function () {
   // Only 1 ajax request has been made
@@ -374,10 +568,17 @@ Promise.all([coll.fetch(), filtered.fetch()]).then(function () {
   // filtered has all models with odd ids
 });
       </code></pre>
+
+      <aside class="notes">
+        <ul>
+          <li>Good RESTful APIs establish patterns</li>
+          <li>Make it so Hoard uses these patterns to pick a more general URL and apply patterns</li>
+        </ul>
+      </aside>
     </section>
 
     <section>
-      <h2>Can I Get Some Links?</h2>
+      <h2>Links</h2>
       <ul>
         <li><a href="https://github.com/cmaher/backbone.hoard">github.com/cmaher/backbone.hoard</a></li>
         <li><a href="https://gitter.im/cmaher/backbone.hoard">gitter.im/cmaher/backbone.hoard</a></li>
