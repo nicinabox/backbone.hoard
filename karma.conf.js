@@ -15,6 +15,7 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
+      'node_modules/localforage/dist/localforage.js',
       'node_modules/sinon/pkg/sinon.js',
       'spec/integration/spec.bundle.js'
     ],

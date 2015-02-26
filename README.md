@@ -241,4 +241,8 @@ If persistence beyond page refreshes is desired, `Hoard.backend` can also be set
  
  // Make all instantces of SessionStore use SessionStorage
  var SessionStore = Hoard.Store.extend({ backend: sessionStorage });
+
+ // Using mozilla/localForage
+ localforage.setDriver(localforage.INDEXEDDB);
+ var LocalForageStore = Hoard.Store.extend({ backend: localforage });
  ```

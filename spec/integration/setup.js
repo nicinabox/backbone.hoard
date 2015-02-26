@@ -21,6 +21,13 @@ writeSpecs('localStorage', localStorage);
 readSpecs('asyncLocalStorage', asyncLocalStorage);
 writeSpecs('asyncLocalStorage', asyncLocalStorage);
 
+// loaded by karma
+localforage.config({
+  driver: localforage.INDEXEDDB
+});
+readSpecs('localforage', localforage);
+writeSpecs('localforage', localforage);
+
 window.expect = chai.expect;
 chai.use(sinonChai);
 chai.use(chaiAsPromised);

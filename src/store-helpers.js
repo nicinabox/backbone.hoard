@@ -36,7 +36,7 @@ module.exports = {
 
   proxyRemoveItem: function (key, options) {
     return Hoard.Promise.resolve().then(_.bind(function () {
-      return this.backend.removeItem(key, options);
+      return this.backend.removeItem(key);
     }, this));
   }
 };
