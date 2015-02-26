@@ -113,8 +113,12 @@ The returned method has all of the same properties as the control's `sync` metho
 ##Policy
 
 The `Policy` determines meta information about cached items.
-The default implementation is bare-bones. Look at `recipes/time-sensitive-policy`
-for a more interesting policy implementation.
+The default implementation is bare-bones.
+
+Consider:
+
+* `recipes/time-sensitive-policy` for a policy featuring time-based eviction.
+* `recipes/jquery-data-params-policy` for a policy knowledgeable about jQuery data params on read
 
 ###Policy#getUrl(model, options, options)
 
