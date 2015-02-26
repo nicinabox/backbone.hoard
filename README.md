@@ -50,7 +50,6 @@ Promise.all(fetches).then(function () {
 
  - Backbone 1.0.0 - 1.1.2
  - underscore 1.4.4 - 1.7.0
- - `localStorage`
  - An es6-compliant `Promise`
  
 #API
@@ -113,16 +112,13 @@ The returned method has all of the same properties as the control's `sync` metho
 
 ##Policy
 
-The `Policy` determines meta information about cached items
+The `Policy` determines meta information about cached items.
+The default implementation is bare-bones.
 
-###Policy#timeToLive
+Consider:
 
-The amount of time, in milliseconds, that an item should be stored in the cache
-
-###Policy#expires
-
-A timestamp, in milliseconds, indicating the time after which the item should no longer be stored in the cache. 
-If both `timeToLive` and `expires` are present, `expires` takes precedence.
+* `recipes/time-sensitive-policy` for a policy featuring time-based eviction.
+* `recipes/jquery-data-params-policy` for a policy knowledgeable about jQuery data params on read
 
 ###Policy#getUrl(model, options, options)
 
@@ -138,6 +134,22 @@ Defaults to Policy#getUrl.
 
 Return the database representation of the model. Defaults to `model.toJSON()`.
 
+###Policy#getCollection(model, options)
+
+Return the collection associated with the model, if any. Defaults to `model.collection`.
+
+###Policy#areModelsSame(model, otherModel)
+
+Return true if two models should be considered the same. Return false otherwise.
+`model` and `otherModel` are provided as their attribute objects.
+Defaults to returning true if the models have the same id.
+
+###Policy#findSameModel(collection, model)
+
+Look through `collection` for a model equivalent to `model`, and return that found model.
+Delegate to `Policy#areModelsSame` for model comparison.
+`collection` is provided as an array of objects. `model` is provided as an object.
+
 ###Policy#shouldEvictItem(metadata)
 
 Returns `true` if the item represented by `metadata` is stale, false otherwise.
@@ -146,12 +158,13 @@ Returns `true` if the item represented by `metadata` is stale, false otherwise.
 
 Returns an array of keys to evict from cache if the cache is full. Defaults to returning all keys in the cache.
 
-###Policy#getMetadata(key, response, [options])
+###Policy#getMetadata(key, response, options)
 
 Returns an object representing the metadata for the given `key`, `response`, and `options`.
 
-By default, only expiration data is returned, based on the Policy's `timeToLive` or `expires` property. 
+Returns an empty object by default.
 This behavior is agnostic of any arguments provided, which are available for custom implementations.
+See `recipe/time-sensitive-policy` for an example of using metadata for cache expiration
 
 ##Strategy
 
@@ -169,7 +182,7 @@ Returns a `Promise` that resolves if the sync action is successful or rejects if
 ##Store
 
 The `Store` encapsulates all interaction with the backing persistence API. 
-Even though the default implementation uses `localStorage` for persistence, 
+Even though the default implementation uses an api similar to `localStorage` for persistence,
 all interactions with `Store` are asynchronous. 
 This behavior makes it possible to use other types of client-side storage, such as IndexedDB or WebSQL
 
@@ -216,19 +229,24 @@ Otherwise, you will need to configure Hoard with an es6-compliant Promise implem
  
 ##Hoard.backend
 
-By default, Hoard will use `localStorage` to cache data and metadata.
-If support for older browsers is desired, be sure to use a polyfill. 
-`Hoard.backend` can also be set to `sessionStorage`, or anything matching a `localStorage` API supporting:
+By default, Hoard will use an in-memory store to cache data and metadata.
+Using an in-memory store ensures that the cache will never be stale on a page refresh.
+If persistence beyond page refreshes is desired, `Hoard.backend` can also be set to
+`localStorage`, `sessionStorage`, or anything matching a `localStorage` API supporting:
 
  - `backend.setItem`
  - `backend.getItem`
  - `backend.removeItem`
  
  ```js
- // ex: using sessionStorage instead of local storage
- // Make Stores use sessionStorage unless explicitly told to use something else
- Hoard.backend = sessionStorage;
+ // ex: using localStorage instead of the in-memory store
+ // Make Stores use localStorage unless explicitly told to use something else
+ Hoard.backend = localStorage;
  
- // Make all instantces of LocalStore use localStorage
- var LocalStore = Hoard.Store.extend({ backend: localStorage });
+ // Make all instantces of SessionStore use SessionStorage
+ var SessionStore = Hoard.Store.extend({ backend: sessionStorage });
+
+ // Using mozilla/localForage
+ localforage.setDriver(localforage.INDEXEDDB);
+ var LocalForageStore = Hoard.Store.extend({ backend: localforage });
  ```

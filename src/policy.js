@@ -14,10 +14,6 @@ var Policy = function (options) {
 _.extend(Policy.prototype, Hoard.Events, {
   initialize: function () {},
 
-  // How long, in milliseconds, should a cached item be considered 'fresh'?
-  // Superceded by the `expires` option, which determines at what time the cache item becomes stale
-  timeToLive: 5 * 60 * 1000,
-
   // Generate a key for the given model
   // The key will be used to determine uniqueness in the store
   getKey: function (model, method, options) {
@@ -56,22 +52,16 @@ _.extend(Policy.prototype, Hoard.Events, {
   },
 
   // Generate metadata
+  // Overwrite to return meaningful metadata
   getMetadata: function (key, response, options) {
-    var meta = {};
-    var expires = this.expires;
-    if (this.timeToLive != null && expires == null) {
-      expires = Date.now() + this.timeToLive;
-    }
-    if (expires != null) {
-      meta.expires = expires;
-    }
-    return meta;
+    return {};
   },
 
   // Return true if the item associated with the given metadata should be evicted.
   // Return false otherwise.
+  // Override if you want to use metaData to determine whether or not to evict the item
   shouldEvictItem: function (meta) {
-    return meta.expires != null && meta.expires < Date.now();
+    return false;
   },
 
   // Return an array of keys to evict

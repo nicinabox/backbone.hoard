@@ -14,10 +14,19 @@ var asyncLocalStorage = require('./async-local-storage');
 var readSpecs = require('./read.int-spec.js');
 var writeSpecs = require('./write.int-spec.js');
 
+readSpecs('Backend', Hoard.backend);
+writeSpecs('Backend', Hoard.backend);
 readSpecs('localStorage', localStorage);
 writeSpecs('localStorage', localStorage);
 readSpecs('asyncLocalStorage', asyncLocalStorage);
 writeSpecs('asyncLocalStorage', asyncLocalStorage);
+
+// loaded by karma
+localforage.config({
+  driver: localforage.INDEXEDDB
+});
+readSpecs('localforage', localforage);
+writeSpecs('localforage', localforage);
 
 window.expect = chai.expect;
 chai.use(sinonChai);
@@ -41,5 +50,4 @@ beforeEach(function () {
 afterEach(function () {
   this.server.restore();
   this.sinon.restore();
-  localStorage.clear();
 });

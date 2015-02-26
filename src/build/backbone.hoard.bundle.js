@@ -11,10 +11,6 @@ if (typeof Promise !== 'undefined') {
   Hoard.Promise = Promise;
 }
 
-if (typeof localStorage !== 'undefined') {
-  Hoard.backend = localStorage;
-}
-
 var previousHoard = Backbone.Hoard;
 Backbone.Hoard = Hoard;
 Hoard.noConflict = function () {

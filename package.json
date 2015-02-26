@@ -31,6 +31,8 @@
     "karma": "^0.12.24",
     "karma-chrome-launcher": "^0.1.5",
     "karma-mocha": "^0.1.9",
+    "karma-mocha-reporter": "^0.3.2",
+    "localforage": "^1.2.2",
     "mocha": "^1.21.4",
     "sinon": "^1.10.3",
     "sinon-chai": "^2.5.0",

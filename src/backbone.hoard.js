@@ -1,11 +1,14 @@
 'use strict';
 
 var Backbone = require('backbone');
+var Backend = require('./backend');
 
 var Hoard = {
   Promise: function () {
     throw new TypeError('An ES6-compliant Promise implementation must be provided');
   },
+
+  backend: new Backend(),
 
   sync: Backbone.sync,
 

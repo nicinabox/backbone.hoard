@@ -6,6 +6,10 @@ var Hoard = require('src/backbone.hoard');
 
 module.exports = function (storageName, storage) {
   describe("Reading with " + storageName, function () {
+    afterEach(function () {
+      return storage.clear();
+    });
+
     beforeEach(function () {
       this.sinon.stub(Hoard, 'backend', storage);
       this.control = new Hoard.Control();
@@ -69,7 +73,15 @@ module.exports = function (storageName, storage) {
         });
 
         it("populates the cache", function () {
-          expect(localStorage.getItem('/id-plus-one/1')).to.equal(JSON.stringify({ id:1, value: 2 }));
+          var storedItem = storage.getItem('/id-plus-one/1');
+          var expectedJSON = JSON.stringify({id: 1, value: 2});
+
+          //account for synchronous and asynchronous storage
+          if (storedItem.then) {
+            return expect(storedItem).to.eventually.equal(expectedJSON);
+          } else {
+            expect(storedItem).to.equal(expectedJSON);
+          }
         });
       });
 
@@ -88,7 +100,7 @@ module.exports = function (storageName, storage) {
             d2.resolve();
           }.bind(this));
 
-          return Promise.all([d1.prmoise, d2.promise]).then(function () {
+          return Promise.all([d1.promise, d2.promise]).then(function () {
             return Promise.all([this.m1Promise, this.m2Promise]);
           }.bind(this));
         });
@@ -143,13 +155,20 @@ module.exports = function (storageName, storage) {
       });
     });
 
-    describe("when the cached value has expired", function () {
+    describe("when the cached value should be evicted", function () {
       beforeEach(function () {
         this.key = '/id-plus-one/1';
-        this.control.store.set(this.key, { id: 1, value: 'super-value' });
-        this.control.store.metaStore.set(this.key, { expires: Date.now() - 1000 });
-        this.m1 = new this.Model({ id: 1 });
-        return this.m1.fetch();
+        this.control.policy.shouldEvictItem = function () {
+          return true;
+        };
+        return this.control.store.set(this.key, {id: 1, value: 'super-value'})
+          .then(function () {
+            return this.control.store.metaStore.set(this.key, {});
+          }.bind(this))
+          .then(function () {
+            this.m1 = new this.Model({id: 1});
+            return this.m1.fetch();
+          }.bind(this));
       });
 
       it("sets it's value to the server response", function () {
