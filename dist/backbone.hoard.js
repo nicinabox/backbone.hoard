@@ -67,10 +67,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  Hoard.Promise = Promise;
 	}
 	
-	if (typeof localStorage !== 'undefined') {
-	  Hoard.backend = localStorage;
-	}
-	
 	var previousHoard = Backbone.Hoard;
 	Backbone.Hoard = Hoard;
 	Hoard.noConflict = function () {
@@ -94,11 +90,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 	
 	var Backbone = __webpack_require__(1);
+	var Backend = __webpack_require__(16);
 	
 	var Hoard = {
+	  VERSION: '0.4.0',
+	
 	  Promise: function () {
 	    throw new TypeError('An ES6-compliant Promise implementation must be provided');
 	  },
+	
+	  backend: new Backend(),
 	
 	  sync: Backbone.sync,
 	
@@ -247,10 +248,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	_.extend(Policy.prototype, Hoard.Events, {
 	  initialize: function () {},
 	
-	  // How long, in milliseconds, should a cached item be considered 'fresh'?
-	  // Superceded by the `expires` option, which determines at what time the cache item becomes stale
-	  timeToLive: 5 * 60 * 1000,
-	
 	  // Generate a key for the given model
 	  // The key will be used to determine uniqueness in the store
 	  getKey: function (model, method, options) {
@@ -289,22 +286,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	  },
 	
 	  // Generate metadata
+	  // Overwrite to return meaningful metadata
 	  getMetadata: function (key, response, options) {
-	    var meta = {};
-	    var expires = this.expires;
-	    if (this.timeToLive != null && expires == null) {
-	      expires = Date.now() + this.timeToLive;
-	    }
-	    if (expires != null) {
-	      meta.expires = expires;
-	    }
-	    return meta;
+	    return {};
 	  },
 	
 	  // Return true if the item associated with the given metadata should be evicted.
 	  // Return false otherwise.
+	  // Override if you want to use metaData to determine whether or not to evict the item
 	  shouldEvictItem: function (meta) {
-	    return meta.expires != null && meta.expires < Date.now();
+	    return false;
 	  },
 	
 	  // Return an array of keys to evict
@@ -776,7 +767,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	  proxyRemoveItem: function (key, options) {
 	    return Hoard.Promise.resolve().then(_.bind(function () {
-	      return this.backend.removeItem(key, options);
+	      return this.backend.removeItem(key);
 	    }, this));
 	  }
 	};
@@ -910,7 +901,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 	
-	var PositiveWriteStrategy = __webpack_require__(16);
+	var PositiveWriteStrategy = __webpack_require__(17);
 	
 	module.exports = PositiveWriteStrategy.extend({
 	  method: 'create',
@@ -1049,7 +1040,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 	
-	var PositiveWriteStrategy = __webpack_require__(16);
+	var PositiveWriteStrategy = __webpack_require__(17);
 	
 	module.exports = PositiveWriteStrategy.extend({ method: 'update' });
 
@@ -1060,7 +1051,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 	
-	var PositiveWriteStrategy = __webpack_require__(16);
+	var PositiveWriteStrategy = __webpack_require__(17);
 	var _ = __webpack_require__(7);
 	
 	module.exports = PositiveWriteStrategy.extend({
@@ -1104,6 +1095,66 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var _ = __webpack_require__(7);
+	
+	// Mimic the API of localStorage
+	// All operations expect JSON strings to be stored and returned
+	var Backend = function () {
+	  this.clear();
+	};
+	
+	_.extend(Backend.prototype, {
+	  // around 5MB, matching common localStorage limit
+	  maxSize: 5000000,
+	
+	  // Store the given value and update the size
+	  setItem: function (key, value) {
+	    if (this.size + value.length > this.maxSize) {
+	      // Notify Hoard that the cache is full.
+	      // This will trigger a cache invalidation.
+	      throw new Error("On-Page Cache size exceeded");
+	    } else {
+	      this.storage[key] = value;
+	      this.size += value.length;
+	    }
+	  },
+	
+	  // Get the item with the given key from the cache
+	  // or null if the item is not found
+	  getItem: function (key) {
+	    var value = this.storage[key];
+	    if (_.isUndefined(value)) {
+	      value = null;
+	    }
+	    return value;
+	  },
+	
+	  // Remove the item with the given key
+	  // And update the size of the cache
+	  removeItem: function (key) {
+	    var value = this.getItem(key);
+	    delete this.storage[key];
+	    if (value != null) {
+	      this.size -= value.length;
+	    }
+	    return value;
+	  },
+	
+	  clear: function () {
+	    this.storage = {};
+	    this.size = 0;
+	  }
+	});
+	
+	module.exports = Backend;
+
+
+/***/ },
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';

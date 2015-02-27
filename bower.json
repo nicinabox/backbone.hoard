@@ -1,9 +1,9 @@
 {
   "name": "backbone.hoard",
-  "version": "0.3.0",
-  "description": "XHR de-duping and local caching for Backbone",
+  "version": "0.4.0",
+  "description": "XHR Consolidation and Caching for Backbone",
   "main": "dist/backbone.hoard.js",
-  "keywords": ["backbone", "cache", "localstorage", "sync", "de-dupe"],
+  "keywords": ["backbone", "cache", "localstorage", "sync", "de-dupe", "indexeddb", "localforage", "consolidation"],
   "author": "Christian Maher",
   "license": "MIT",
   "dependencies": {
