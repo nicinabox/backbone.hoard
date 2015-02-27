@@ -21,12 +21,7 @@ module.exports = Policy.extend({
       // If data is an object, convert to a query string
       // Otherwise, accept that data is a string and just use that
       if (_.isObject(data)) {
-        // Sort for consistency to ensure cache hits when appropriate
-        paramKeys = _.keys(data).sort();
-        queryParams = _.reduce(paramKeys, function (memo, key) {
-          var value = data[key];
-          return memo + '&' + key + '=' + value;
-        }, '');
+        queryParams = $.param(data);
       } else {
         queryParams = data;
       }
